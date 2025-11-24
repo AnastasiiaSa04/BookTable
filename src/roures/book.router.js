@@ -1,81 +1,70 @@
 import { Router } from "express";
 import Book from "../db/models/book.js";
+import HttpError from "../utils/HttpError.js";
 
 const bookRouter = Router();
 
-bookRouter.get("/", async (req, res, next) => {
-    try {
-        const books = await Book.findAll()
-        res.json(books)
-    } catch (error) {
-        next (error)
-    }
-})
-
-bookRouter.get("/:id", async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const book = await Book.findByPk(id);
-        if (!book) {
-            return res.status(404).json({ message: "Book not found" });
-        }
-        res.json(book);
-    } catch (error) {
-        next(error);
-    }
+bookRouter.get("/", async (req, res) => {
+  const books = await Book.findAll();
+  res.json(books);
 });
 
-bookRouter.post("/", async (req, res, next) => {
-    try {
-        const {title, author, year} =req.body;
-        if (!title || !author || !year) {
-            error.statusCode(400);
-            throw error
-        }
-        const newBook = await Book.create({title, author, year})
-        res.status(201).json(newBook)
-    } catch (error) {
-        next (error)
+bookRouter.get("/:id", async (req, res) => {
+  const { id } = req.params;
+  const book = await Book.findByPk(id);
+  if (!book) {
+    throw new HttpError(404, "Book not found");
+  }
+
+  res.json(book);
+});
+
+bookRouter.post("/", async (req, res) => {
+  const { title, author, year } = req.body;
+
+  if (!title || !author || !year) {
+    throw new HttpError(400, "Missing required fields");
+  }
+
+  const newBook = await Book.create({ title, author, year });
+
+  res.status(201).json(newBook);
+});
+
+bookRouter.put("/:id", async (req, res) => {
+  const { id } = req.params;
+
+  const book = await Book.findByPk(id);
+
+  if (!book) {
+    throw new HttpError(404, "Book not found");
+  }
+
+  const allowedFields = ["title", "author", "year"];
+
+  allowedFields.forEach((field) => {
+    if (req.body[field] !== undefined) {
+      book[field] = req.body[field];
     }
-})
+  });
 
-bookRouter.put("/:id", async (req, res, next) => {
-    try {
-    const {id} = req.params
-    const {title, author, year} = req.body
+  await book.save();
 
-    const book = await Book.findByPk(id);
-    if (!book) {
-        return res.status(404).json({message: "Book not found"})
-    }
-    if (title !== undefined) book.title = title
-    if (author !== undefined) book.author = author
-    if (year !== undefined) book.year = year
+  res.json(book);
+});
 
-    await book.save()
-        res.json(book)
-} catch (error) {
-    next (error)
-}
-})
+bookRouter.delete("/:id", async (req, res) => {
+  const { id } = req.params;
 
-bookRouter.delete("/:id", async (req, res, next) => {
-    try {
-        const {id} = req.params;
+  const book = await Book.findByPk(id);
 
-        const book = await Book.findByPk(id);
-        if(!book) {
-            return res.status(404).json({message: "Book not found"})
-        }
+  if (!book) {
+    throw new HttpError(404, "Book not found");
+  }
 
-        await book.destroy()
-            res.status(204).send();
-    } catch (error) {
-        next (error)
-    }
-})
+  await book.destroy();
 
-
-
+  res.status(204).send();
+});
 
 export default bookRouter;
